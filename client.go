@@ -2,10 +2,11 @@ package piperedis
 
 import (
 	"context"
+	"time"
+
 	"emperror.dev/errors"
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/atomic"
-	"time"
 )
 
 type Client struct {
@@ -33,9 +34,10 @@ const (
 )
 
 type Option struct {
-	NumBackgroundWorker int
-	ChannelBufferSize   int
-	MinCollectInterval  time.Duration
+	NumBackgroundWorker    int
+	ChannelBufferSize      int
+	MinCollectInterval     time.Duration
+	MaxNRequestsInPipeline int
 }
 
 func New(client redis.UniversalClient, option Option) (*Client, error) {
@@ -48,6 +50,9 @@ func New(client redis.UniversalClient, option Option) (*Client, error) {
 	if option.MinCollectInterval <= 0 {
 		option.MinCollectInterval = kDefaultMinCollectInterval
 	}
+	if option.MaxNRequestsInPipeline <= 0 {
+		option.MaxNRequestsInPipeline = option.ChannelBufferSize
+	}
 
 	cli := &Client{
 		workers: nil,
@@ -55,7 +60,8 @@ func New(client redis.UniversalClient, option Option) (*Client, error) {
 	}
 
 	for i := 0; i < option.NumBackgroundWorker; i++ {
-		bgWorker, err := newBGWorker(client, option.ChannelBufferSize, option.MinCollectInterval)
+		bgWorker, err := newBGWorker(client, option.ChannelBufferSize, option.MinCollectInterval,
+			option.MaxNRequestsInPipeline)
 		if err != nil {
 			for _, w := range cli.workers {
 				err = errors.Append(err, w.close())

@@ -2,12 +2,13 @@ package piperedis
 
 import (
 	"context"
-	"github.com/alicebob/miniredis"
-	"github.com/go-redis/redis/v8"
-	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/alicebob/miniredis"
+	"github.com/go-redis/redis/v8"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBGWorker(t *testing.T) {
@@ -24,7 +25,7 @@ func TestBGWorker(t *testing.T) {
 	}()
 
 	require.NoError(t, c.Ping(context.Background()).Err())
-	worker, err := newBGWorker(c, 16, time.Millisecond)
+	worker, err := newBGWorker(c, 16, time.Millisecond, 1024)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, worker.close())
@@ -38,7 +39,7 @@ func TestBGWorker(t *testing.T) {
 	for i := 0; i < kConcurrency; i++ {
 		go func(drop bool) {
 			defer complete.Done()
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(context.Background()) // nolint: govet
 			if drop {
 				cancel()
 			}
@@ -48,7 +49,7 @@ func TestBGWorker(t *testing.T) {
 			}
 			if drop {
 				require.Error(t, cmd.Err())
-				return
+				return // nolint: govet
 			}
 			require.NoError(t, cmd.Err())
 			txt, err := cmd.Text()

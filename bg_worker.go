@@ -2,9 +2,10 @@ package piperedis
 
 import (
 	"context"
-	"github.com/go-redis/redis/v8"
 	"sync"
 	"time"
+
+	"github.com/go-redis/redis/v8"
 )
 
 type job struct {
@@ -27,6 +28,7 @@ type bgWorker struct {
 	complete           sync.WaitGroup
 	minCollectInterval time.Duration
 	client             redis.UniversalClient
+	maxNReqPerBatch    int
 }
 
 func (w *bgWorker) init(bufSize int) {
@@ -57,6 +59,9 @@ func (w *bgWorker) init(bufSize int) {
 						continue
 					}
 					jobs = append(jobs, j)
+					if len(jobs) >= w.maxNReqPerBatch {
+						exited = true
+					}
 				case <-interval:
 					exited = true
 				}
@@ -115,10 +120,12 @@ func (w *bgWorker) close() error {
 	return nil
 }
 
-func newBGWorker(client redis.UniversalClient, bufSize int, minCollectInterval time.Duration) (*bgWorker, error) {
+func newBGWorker(client redis.UniversalClient, bufSize int, minCollectInterval time.Duration,
+	maxNReqPerBatch int) (*bgWorker, error) {
 	w := &bgWorker{
 		minCollectInterval: minCollectInterval,
 		client:             client,
+		maxNReqPerBatch:    maxNReqPerBatch,
 	}
 	w.init(bufSize)
 	return w, nil

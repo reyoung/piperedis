@@ -2,12 +2,13 @@ package piperedis
 
 import (
 	"context"
-	"github.com/alicebob/miniredis"
-	"github.com/go-redis/redis/v8"
-	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/alicebob/miniredis"
+	"github.com/go-redis/redis/v8"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClient(t *testing.T) {
@@ -29,6 +30,7 @@ func TestClient(t *testing.T) {
 		ChannelBufferSize:   16,
 		MinCollectInterval:  time.Millisecond,
 	})
+	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, worker.Close())
 	}()
@@ -41,7 +43,7 @@ func TestClient(t *testing.T) {
 	for i := 0; i < kConcurrency; i++ {
 		go func(drop bool) {
 			defer complete.Done()
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(context.Background()) // nolint: govet
 			if drop {
 				cancel()
 			}
@@ -51,7 +53,7 @@ func TestClient(t *testing.T) {
 			}
 			if drop {
 				require.Error(t, cmd.Err())
-				return
+				return // nolint: govet
 			}
 			require.NoError(t, cmd.Err())
 			txt, err := cmd.Text()
